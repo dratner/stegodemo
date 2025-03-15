@@ -5,7 +5,7 @@ import numpy as np
 class SimpleStego:
     """A reliable steganography system for resource-constrained environments."""
 
-    def __init__(self, model_name="EleutherAI/pythia-160m", device="cpu"):
+    def __init__(self, model_name="gpt2", device="cpu"):
         """Initialize with a small language model."""
         self.device = device
 
@@ -55,24 +55,19 @@ class SimpleStego:
         except UnicodeDecodeError:
             return bytes_data.decode('utf-8', errors='replace')
 
-    def encode(self, message_bits, prompt, temp=0.8, top_k=40, max_tokens=200):
+    def encode(self, message_bits, prompt, temp=1.0, top_k=10, max_tokens=200):
         """
         Encode a binary message into text using a simple binary partition approach.
         Each token encodes exactly 1 bit.
-
-        We use a deterministic split of the vocabulary based on token ranking.
         """
         if isinstance(message_bits, str):
             message_bits = self.text_to_bits(message_bits)
 
         # Tokenize the prompt
-        print("Tokenizing prompt...")
         input_ids = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
 
         generated = input_ids[0].tolist()
         stats = {"bits_encoded": 0, "tokens_generated": 0}
-
-        print(f"Encoding {len(message_bits)} bits...")
 
         # Generate text token by token
         with torch.no_grad():
@@ -101,7 +96,6 @@ class SimpleStego:
                 top_tokens = sorted_indices[:top_k]
 
                 # Simply split the top tokens in half
-                # This is more deterministic than trying to balance probability mass
                 mid_point = len(top_tokens) // 2
 
                 # Choose token based on current bit
@@ -124,10 +118,6 @@ class SimpleStego:
                 stats["bits_encoded"] += 1
                 stats["tokens_generated"] += 1
 
-                # Periodic update
-                if i % 10 == 0 and i > 0:
-                    print(f"Encoded {i} bits...")
-
                 # Check if we've reached an end token
                 if next_token == self.tokenizer.eos_token_id:
                     break
@@ -137,19 +127,16 @@ class SimpleStego:
 
         return generated_text, stats
 
-    def decode(self, encoded_text, prompt, top_k=40):
+    def decode(self, encoded_text, prompt, top_k=10):
         """
         Decode a message hidden in text using the simple binary partition approach.
         """
         # Tokenize prompt and encoded text
-        print("Tokenizing for decoding...")
         prompt_ids = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
         encoded_ids = self.tokenizer.encode(encoded_text, return_tensors="pt").to(self.device)[0].tolist()
 
         extracted_bits = []
         stats = {"bits_decoded": 0, "tokens_processed": 0}
-
-        print(f"Decoding {len(encoded_ids)} tokens...")
 
         # Process tokens one by one
         with torch.no_grad():
@@ -202,10 +189,6 @@ class SimpleStego:
                 stats["bits_decoded"] += 1
                 stats["tokens_processed"] += 1
 
-                # Periodic update
-                if i % 10 == 0 and i > 0:
-                    print(f"Decoded {i} tokens...")
-
                 # Stop if we hit the end token
                 if token_id == self.tokenizer.eos_token_id:
                     break
@@ -233,23 +216,22 @@ class SimpleStego:
 
 # Example usage
 def example():
-    # Initialize with a small model suitable for Raspberry Pi
-    stego = SimpleStego(model_name="EleutherAI/pythia-160m")
+    # Initialize with GPT-2 Small
+    stego = SimpleStego(model_name="gpt2")
 
     # Message to hide
     message = "This is a secret message!"
 
-    # Prompt to start generation
-    #prompt = "Today I learned something interesting about deep learning:"
-    prompt = "Sammie’s is a little taste of old Italy in downtown Austin. It celebrates the great ‘red sauce’ institution—inspired by old school, legendary Italian-American restaurants."
+    # Better prompt for more natural text
+    prompt = "Sergio's Italian Grille is the newest restaurant in downtown Austin."
 
     # Encode the message
     print(f"Encoding message: {message}")
     encoded_text, encode_stats = stego.encode_message(
         message,
         prompt,
-        temp=0.7,
-        top_k=20,  # Using a smaller top_k for more reliability
+        temp=1.0,  # Higher temperature for more natural text
+        top_k=10,  # Smaller top_k for higher reliability
         max_tokens=200
     )
     print(f"Generated text: {encoded_text}")
@@ -264,7 +246,7 @@ def example():
         encoded_text,
         prompt,
         expected_bits=expected_bits,
-        top_k=20  # Same top_k as encoding
+        top_k=10  # Same top_k as encoding
     )
     print(f"Decoded message: {decoded_message}")
     print(f"Decoding stats: {decode_stats}")
