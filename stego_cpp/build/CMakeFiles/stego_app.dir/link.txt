@@ -1,0 +1,1 @@
+/Library/Developer/CommandLineTools/usr/bin/c++  -arch arm64 -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.2.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/stego_app.dir/src/main.cpp.o CMakeFiles/stego_app.dir/src/stego.cpp.o CMakeFiles/stego_app.dir/src/gpt2_model.cpp.o -o bin/stego_app
